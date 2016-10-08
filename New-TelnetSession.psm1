@@ -299,6 +299,7 @@ function PARSE_NUMBER {
 function PARSE_CSI_ARGUMENTS {
     PARSE_NUMBER
     while ([char]$byte -eq ";") {
+        next > $null
         PARSE_NUMBER
     }
 }
