@@ -48,6 +48,12 @@ $bgcolor_default = $host.UI.RawUI.BackgroundColor
 $fgcolor = $fgcolor_default
 $bgcolor = $bgcolor_default
 
+# screen
+$cursor = New-Object System.Collections.Stack
+
+###############################################################################
+# Common
+###############################################################################
 function next {
     try {
         $script:byte = $stream.ReadByte()
@@ -64,6 +70,10 @@ filter WriteByte {
 filter output {
     Write-Host -NoNewline $_ -ForegroundColor $script:fgcolor -BackgroundColor $script:bgcolor
 }
+
+###############################################################################
+#  Encoding
+###############################################################################
 function ENC_EUCJP {
 }
 function ENC_SJIS {
@@ -94,6 +104,10 @@ function ENC_UTF8 {
     $script:Ch | output
     $Q.Clear()
 }
+
+###############################################################################
+# IAC
+###############################################################################
 function IAC_SB {
     switch (next) {
         $terminal_type {
@@ -166,6 +180,33 @@ function negotiation {
     $IAC, $WILL, $window_size  | WriteByte
     $stream.Flush()
 }
+
+###############################################################################
+# Screen
+###############################################################################
+function Get-Cursor {
+    New-Object System.Management.Automation.Host.Coordinates(
+        $Host.UI.RawUI.CursorPosition.X,
+        $Host.UI.RawUI.CursorPosition.Y
+    )
+}
+function Set-Cursor {
+    param($pos)
+    $Host.UI.RawUI.CursorPosition = $pos
+}
+function Save-Cursor {
+    param($pos)
+    if ($pos -eq $null) { $pos = Get-Cursor }
+    $script:cursor.push($pos) > $null
+    return $pos
+}
+function Restore-Cursor {
+    $Host.UI.RawUI.CursorPosition = $script:cursor.Pop()
+}
+
+###############################################################################
+# CSI
+###############################################################################
 function CSI_CUU {
     param($arguments)
     if ($arguments -eq $null) {
@@ -173,9 +214,9 @@ function CSI_CUU {
     } else {
         $count = $arguments[0]
     }
-    $X = $Host.UI.RawUI.CursorPosition.X
-    $Y = $Host.UI.RawUI.CursorPosition.Y
-    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X, ($Y - $count)
+    $pos = Get-Cursor
+    $pos.Y -= $count
+    Set-Cursor $pos
 }
 function CSI_CUD {
     param($arguments)
@@ -184,9 +225,9 @@ function CSI_CUD {
     } else {
         $count = $arguments[0]
     }
-    $X = $Host.UI.RawUI.CursorPosition.X
-    $Y = $Host.UI.RawUI.CursorPosition.Y
-    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X, ($Y + $count)
+    $pos = Get-Cursor
+    $pos.Y += $count
+    Set-Cursor $pos
 }
 function CSI_CUR {
     param($arguments)
@@ -195,9 +236,9 @@ function CSI_CUR {
     } else {
         $count = $arguments[0]
     }
-    $X = $Host.UI.RawUI.CursorPosition.X
-    $Y = $Host.UI.RawUI.CursorPosition.Y
-    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates ($X + $count), $Y
+    $pos = Get-Cursor
+    $pos.X += $count
+    Set-Cursor $pos
 }
 function CSI_CUL {
     param($arguments)
@@ -206,9 +247,9 @@ function CSI_CUL {
     } else {
         $count = $arguments[0]
     }
-    $X = $Host.UI.RawUI.CursorPosition.X
-    $Y = $Host.UI.RawUI.CursorPosition.Y
-    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates ($X - $count), $Y
+    $pos = Get-Cursor
+    $pos.X -= $count
+    Set-Cursor $pos
 }
 function CSI_EL {
     param($arguments)
@@ -219,14 +260,9 @@ function CSI_EL {
     }
     switch ($mode) {
         0 {
-            # 現在のカーソル位置を保存
-            $X = $Host.UI.RawUI.CursorPosition.X
-            $Y = $Host.UI.RawUI.CursorPosition.Y
-            # 行末までスペースで埋める
-            $width = $Host.UI.RawUI.BufferSize.Width - $X
-            " " * $width | output
-            # もとのカーソル位置へ戻る
-            $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X, $Y
+            $pos = Save-Cursor
+            " " * ($Host.UI.RawUI.BufferSize.Width - $pos.X) | output
+            Restore-Cursor
         }
         1 {  }
         2 {  }
@@ -321,6 +357,10 @@ function ESCAPE {
         default {  }
     }
 }
+
+###############################################################################
+# Parse
+###############################################################################
 function Parse {
     switch ($byte) {
         $IAC { IAC }
