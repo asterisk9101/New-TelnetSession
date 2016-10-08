@@ -28,10 +28,8 @@ $remote_flow_control    = 0x21
 $linemode               = 0x22
 $environment_variables  = 0x24
 
-
 # escape sequence
 $ESC = 0x1B
-
 
 # global variables
 $ENC = $null # function
@@ -43,7 +41,6 @@ $Ch = ""
 $UTF8 = [System.Text.Encoding]::UTF8
 $SJIS = [System.Text.Encoding]::Default
 $EUCJP = [System.Text.Encoding]::GetEncoding("EUC-JP")
-
 
 # font style
 $fgcolor_default = $host.UI.RawUI.ForegroundColor
@@ -111,15 +108,9 @@ function IAC_SB {
 }
 function IAC_WILL {
     switch (next) {
-        $suppress_go_ahead {
-            # through
-        }
-        $terminal_type {
-            # through
-        }
-        $echo {
-            # through
-        }
+        $suppress_go_ahead { <# through #> }
+        $terminal_type { <# through #> }
+        $echo { <# through #> }
         default {
             $IAC, $DONT, $byte | WriteByte
         }
