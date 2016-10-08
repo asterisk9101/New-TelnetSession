@@ -355,11 +355,11 @@ function interaction {
                 { $_.key -eq [ConsoleKey]::Escape }     { 0x1B | WriteByte }
                 { $_.key -eq [ConsoleKey]::Backspace }  { 0x08 | WriteByte }
                 { $_.key -eq [ConsoleKey]::Delete }     { 0x7F | WriteByte }
-                { $_.key -eq [ConsoleKey]::Home }       { 0x1B, 0x15, 0x31, 0x7E | WriteByte }
-                { $_.key -eq [ConsoleKey]::Insert }     { 0x1B, 0x15, 0x32, 0x7E | WriteByte }
-                { $_.key -eq [ConsoleKey]::End }        { 0x1B, 0x15, 0x34, 0x7E | WriteByte }
-                { $_.key -eq [ConsoleKey]::PageUp }     { 0x1B, 0x15, 0x35, 0x7E | WriteByte }
-                { $_.key -eq [ConsoleKey]::PageDown }   { 0x1B, 0x15, 0x36, 0x7E | WriteByte }
+                { $_.key -eq [ConsoleKey]::Home }       { 0x1B, 0x5B, 0x31, 0x7E | WriteByte }
+                { $_.key -eq [ConsoleKey]::Insert }     { 0x1B, 0x5B, 0x32, 0x7E | WriteByte }
+                { $_.key -eq [ConsoleKey]::End }        { 0x1B, 0x5B, 0x34, 0x7E | WriteByte }
+                { $_.key -eq [ConsoleKey]::PageUp }     { 0x1B, 0x5B, 0x35, 0x7E | WriteByte }
+                { $_.key -eq [ConsoleKey]::PageDown }   { 0x1B, 0x5B, 0x36, 0x7E | WriteByte }
                 { $_.key -eq [ConsoleKey]::UpArrow }    { 0x1B, 0x5B, 0x41 | WriteByte }
                 { $_.key -eq [ConsoleKey]::DownArrow }  { 0x1B, 0x5B, 0x42 | WriteByte }
                 { $_.key -eq [ConsoleKey]::RightArrow } { 0x1B, 0x5B, 0x43 | WriteByte }
