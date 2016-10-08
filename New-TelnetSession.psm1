@@ -311,7 +311,7 @@ function CSI {
         "D" { CSI_CUL $arguments }
         "K" { CSI_EL $arguments }
         "m" { CSI_SGR $arguments }
-        default { Write-Debug [char]$byte}
+        default { <# ignore #> }
     }
 }
 function ESCAPE {
