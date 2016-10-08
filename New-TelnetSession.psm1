@@ -287,7 +287,6 @@ function CSI_SGR {
 }
 function PARSE_NUMBER {
     if (-not (0x30 -le $byte -and $byte -le 0x39)) { return }
-    next > $null
     $buf = ""
     while (0x30 -le $byte -and $byte -le 0x39) {
         $buf += [char]$byte
