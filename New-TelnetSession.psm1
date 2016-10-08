@@ -376,11 +376,14 @@ function interaction {
 }
 function New-TelnetSession {
     param(
-        #[parameter(Mandatory=$true, Position=0)]
-        [string]$IP = "192.168.0.77",
-        $Port = 23,
+        [parameter(Mandatory=$true, Position=0)]
+        [string]$IP,
+        [parameter(Mandatory=$false, Position=1)]
+        [int]$Port = 23,
+        [parameter(Mandatory=$false, Position=2)]
         $Encoding = $UTF8,
-        $Timeout = 5000
+        [parameter(Mandatory=$false, Position=3)]
+        [int]$Timeout = 5000
     )
     try {
         $socket = new-object system.net.sockets.tcpclient($IP, $Port)
@@ -402,5 +405,4 @@ function New-TelnetSession {
         $socket.Close()
     }
 }
-New-TelnetSession
-# Export-ModuleMember -Function New-TelnetSession, test
+Export-ModuleMember -Function New-TelnetSession
