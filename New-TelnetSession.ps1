@@ -61,6 +61,9 @@ filter WriteByte {
     $stream.WriteByte($_)
     Write-Debug ("> " + $_)
 }
+filter output {
+    Write-Host -NoNewline $_ -ForegroundColor $script:fgcolor -BackgroundColor $script:bgcolor
+}
 function ENC_EUCJP {
 }
 function ENC_SJIS {
@@ -88,7 +91,7 @@ function ENC_UTF8 {
         default { throw "invalid UTF8." }
     }
     $script:Ch = $UTF8.GetString($Q.ToArray())
-    Write-Host -NoNewLine $Ch -ForegroundColor $script:fgcolor -BackgroundColor $script:bgcolor
+    $script:Ch | output
     $Q.Clear()
 }
 function IAC_SB {
@@ -173,7 +176,7 @@ function CSI_CUU {
     Write-Warning "cuu"
     $X = $Host.UI.RawUI.CursorPosition.X
     $Y = $Host.UI.RawUI.CursorPosition.Y
-    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X, $Y - $count
+    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X, ($Y - $count)
 }
 function CSI_CUD {
     param($arguments)
@@ -182,10 +185,9 @@ function CSI_CUD {
     } else {
         $count = $arguments[0]
     }
-    Write-Warning "cud"
     $X = $Host.UI.RawUI.CursorPosition.X
     $Y = $Host.UI.RawUI.CursorPosition.Y
-    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X, $Y + $count
+    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X, ($Y + $count)
 }
 function CSI_CUR {
     param($arguments)
@@ -194,10 +196,9 @@ function CSI_CUR {
     } else {
         $count = $arguments[0]
     }
-    Write-Warning "cur"
     $X = $Host.UI.RawUI.CursorPosition.X
     $Y = $Host.UI.RawUI.CursorPosition.Y
-    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X + $count, $Y
+    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates ($X + $count), $Y
 }
 function CSI_CUL {
     param($arguments)
@@ -206,20 +207,31 @@ function CSI_CUL {
     } else {
         $count = $arguments[0]
     }
-    Write-Warning "cul"
     $X = $Host.UI.RawUI.CursorPosition.X
     $Y = $Host.UI.RawUI.CursorPosition.Y
-    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X - $count, $Y
+    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates ($X - $count), $Y
 }
 function CSI_EL {
     param($arguments)
     if ($arguments -eq $null) {
-        
-        return 
+        $mode = 0
+    } else {
+        $mode = $arguments[0]
     }
-    switch ($arguments[0]) {
-        0 {  }
-        Default {}
+    switch ($mode) {
+        0 {
+            # 現在のカーソル位置を保存
+            $X = $Host.UI.RawUI.CursorPosition.X
+            $Y = $Host.UI.RawUI.CursorPosition.Y
+            # 行末までスペースで埋める
+            $width = $Host.UI.RawUI.BufferSize.Width - $X
+            " " * $width | output
+            # もとのカーソル位置へ戻る
+            $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X, $Y
+        }
+        1 {  }
+        2 {  }
+        Default { <# ignore #> }
     }
 }
 function CSI_SGR {
@@ -275,9 +287,8 @@ function CSI_SGR {
     }
 }
 function PARSE_NUMBER {
-    Write-Warning $byte
-    next > $null
     if (-not (0x30 -le $byte -and $byte -le 0x39)) { return }
+    next > $null
     $buf = ""
     while (0x30 -le $byte -and $byte -le 0x39) {
         $buf += [char]$byte
