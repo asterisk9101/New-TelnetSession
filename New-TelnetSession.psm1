@@ -173,7 +173,6 @@ function CSI_CUU {
     } else {
         $count = $arguments[0]
     }
-    Write-Warning "cuu"
     $X = $Host.UI.RawUI.CursorPosition.X
     $Y = $Host.UI.RawUI.CursorPosition.Y
     $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates $X, ($Y - $count)
