@@ -114,8 +114,9 @@ function IAC_SB {
             next > $null # 0x01
             next > $null # IAC
             next > $null # SE
-            # VT100
-            $IAC, $SB, $terminal_type, 0x00, 0x76, 0x74, 0x31, 0x30, 0x30, $IAC, $SE | WriteByte
+            $IAC, $SB, $terminal_type, 0x00, 
+            0x78, 0x74, 0x65, 0x72, 0x6d, # xterm
+            $IAC, $SE | WriteByte
         }
         default {
             throw "invalid SB sequence."
@@ -330,7 +331,7 @@ function PARSE_NUMBER {
     }
     return +$buf
 }
-function PARSE_CSI_ARGUMENTS {
+function PARSE_ARGUMENTS {
     PARSE_NUMBER
     while ([char]$byte -eq ";") {
         next > $null
@@ -339,7 +340,7 @@ function PARSE_CSI_ARGUMENTS {
 }
 function CSI {
     next > $null
-    $arguments = PARSE_CSI_ARGUMENTS
+    $arguments = PARSE_ARGUMENTS
     switch ([char]$byte) {
         "A" { CSI_CUU $arguments }
         "B" { CSI_CUD $arguments }
@@ -347,6 +348,13 @@ function CSI {
         "D" { CSI_CUL $arguments }
         "K" { CSI_EL $arguments }
         "m" { CSI_SGR $arguments }
+        "?" {
+            next > $null
+            $arguments = PARSE_ARGUMENTS
+            switch ([char]$byte) {
+                default { }
+            }
+        }
         default { <# ignore #> }
     }
 }
@@ -354,6 +362,10 @@ function ESCAPE {
     $ch = [char](next)
     switch ($ch) {
         "[" { CSI }
+        "]" {
+            next > $null
+            while ($byte -ne 0x07) { next > $null }
+        }
         default {  }
     }
 }
