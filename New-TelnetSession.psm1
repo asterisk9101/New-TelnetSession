@@ -37,6 +37,7 @@ $Q = new-object System.Collections.Queue
 $stream = $null 
 $byte = $null
 $Ch = ""
+$buf = New-Object System.Text.StringBuilder
 
 $UTF8 = [System.Text.Encoding]::UTF8
 $SJIS = [System.Text.Encoding]::Default
@@ -50,6 +51,7 @@ $bgcolor = $bgcolor_default
 
 # screen
 $cursor = New-Object System.Collections.Stack
+$screen = New-Object System.Collections.Stack
 
 ###############################################################################
 # Common
@@ -183,7 +185,7 @@ function negotiation {
 }
 
 ###############################################################################
-# Screen
+# CSI Screen
 ###############################################################################
 function Get-Cursor {
     New-Object System.Management.Automation.Host.Coordinates(
@@ -193,6 +195,9 @@ function Get-Cursor {
 }
 function Set-Cursor {
     param($pos)
+    if ($pos.X -ge $Host.UI.RawUI.WindowSize.Width) {
+        $pos.X = $Host.UI.RawUI.WindowSize.Width - 1
+    }
     $Host.UI.RawUI.CursorPosition = $pos
 }
 function Save-Cursor {
@@ -204,10 +209,37 @@ function Save-Cursor {
 function Restore-Cursor {
     $Host.UI.RawUI.CursorPosition = $script:cursor.Pop()
 }
+function Move-Cursor {
+    param($line, $column)
+    $newline = $Host.UI.RawUI.WindowPosition.Y
+    $newColumn = $column - 1
+    $pos = New-Object System.Management.Automation.Host.Coordinates $newColumn,$newline
+    Set-Cursor $pos
+}
+function Save-Screen()
+{
+    $rect = New-Object System.Management.Automation.Host.Rectangle
+    $rect.Left   = 0
+    $rect.Top    = $Host.UI.RawUI.CursorPosition.Y - $Host.UI.RawUI.WindowSize.Height
+    $rect.Right  = $Host.UI.RawUI.WindowSize.Width
+    $rect.Bottom = $Host.UI.RawUI.CursorPosition.Y
+    if ($rect.Top -lt 0) { $rect.Top = 0 }
+    $script:screen.push($Host.UI.RawUI.GetBufferContents($rect)) > $null
+}
+function Restore-Screen()
+{
+    $origin = New-Object System.Management.Automation.Host.Coordinates(0, 0)
+    $scrn = $script:screen.Pop()
+    $Host.UI.RawUI.SetBufferContents($origin, $scrn)
+}
 
 ###############################################################################
 # CSI
 ###############################################################################
+function CSI_ICH {
+    param($arguments)
+
+}
 function CSI_CUU {
     param($arguments)
     if ($arguments -eq $null) {
@@ -251,6 +283,36 @@ function CSI_CUL {
     $pos = Get-Cursor
     $pos.X -= $count
     Set-Cursor $pos
+}
+function CSI_CUP {
+    param($arguments)
+    if ($arguments -eq $null) {
+        $l = 0
+        $c = 0
+    } else {
+        $l = $arguments[0]
+        $c = $arguments[1]
+    }
+    Move-Cursor $l $c
+}
+function CSI_ED {
+    param($arguments)
+    $mode = if ($arguments -eq $null) { 0 } else { $arguments[0] }
+    switch ($mode) {
+        0 {
+            $pos = Save-Cursor
+            " " * ($Host.UI.RawUI.CursorPosition.X - $pos.X) | output
+            $lines = $Host.UI.RawUI.WindowPosition.Y + $Host.UI.RawUI.WindowSize.Height
+            for ($i = $Host.UI.RawUI.CursorPosition.Y; $i -lt $lines; $i++) {
+                "`r" | output
+                " " * $Host.UI.RawUI.WindowSize.X | output
+            }
+            Restore-Cursor
+        }
+        1 {  }
+        2 {  }
+        default { <# ignore #> }
+    }
 }
 function CSI_EL {
     param($arguments)
@@ -322,6 +384,9 @@ function CSI_SGR {
         }
     }
 }
+function DEC {
+    param($arguments)
+}
 function PARSE_NUMBER {
     if (-not (0x30 -le $byte -and $byte -le 0x39)) { return }
     $buf = ""
@@ -342,17 +407,55 @@ function CSI {
     next > $null
     $arguments = PARSE_ARGUMENTS
     switch ([char]$byte) {
+        "@" { CSI_ICH $arguments }
         "A" { CSI_CUU $arguments }
         "B" { CSI_CUD $arguments }
         "C" { CSI_CUR $arguments }
         "D" { CSI_CUL $arguments }
         "K" { CSI_EL $arguments }
+        "H" { CSI_CUP $arguments }
         "m" { CSI_SGR $arguments }
         "?" {
             next > $null
             $arguments = PARSE_ARGUMENTS
             switch ([char]$byte) {
-                default { }
+                "h" { DEC $arguments }
+                default { <# ignore #> }
+            }
+        }
+        "=" {
+            next > $null
+            $arguments = PARSE_ARGUMENTS
+            switch ([char]$byte) {
+                default { <# ignore #> }
+            }
+        }
+        ">" {
+            next > $null
+            $arguments = PARSE_ARGUMENTS
+            switch ([char]$byte) {
+                default { <# ignore #> }
+            }
+        }
+        "'" {
+            next > $null
+            $arguments = PARSE_ARGUMENTS
+            switch ([char]$byte) {
+                default { <# ignore #> }
+            }
+        }
+        "!" {
+            next > $null
+            $arguments = PARSE_ARGUMENTS
+            switch ([char]$byte) {
+                default { <# ignore #> }
+            }
+        }
+        " " {
+            next > $null
+            $arguments = PARSE_ARGUMENTS
+            switch ([char]$byte) {
+                default { <# ignore #> }
             }
         }
         default { <# ignore #> }
