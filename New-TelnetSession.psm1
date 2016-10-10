@@ -374,6 +374,7 @@ function ESCAPE {
 # Parse
 ###############################################################################
 function Parse {
+    next > $null
     switch ($byte) {
         $IAC { IAC }
         $ESC { ESCAPE }
@@ -419,7 +420,6 @@ function interaction {
             }
         }
         while ($stream.DataAvailable) {
-            next > $null
             Parse
         }
         sleep -milliseconds 10
