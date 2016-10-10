@@ -366,7 +366,8 @@ function ESCAPE {
             next > $null
             while ($byte -ne 0x07) { next > $null }
         }
-        default {  }
+        "=" { next > $null }
+        default { <# ignore #> }
     }
 }
 
