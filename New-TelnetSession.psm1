@@ -83,6 +83,22 @@ function ENC_SJIS {
 function ENC_UTF8 {
     switch ($byte) {
         { ($byte -band 0x80) -eq 0x00} {
+            if ($byte -eq 0x0D) {
+                $pos = Get-Cursor
+                Move-Cursor 0 $pos.Y
+                return
+            }
+            if ($byte -eq 0x0A) {
+                $pos = Get-Cursor
+                Move-Cursor $pos.X ($pos.Y + 1)
+                return
+            }
+            if ($byte -eq 0x20 -and $Host.UI.RawUI.CursorPosition.X -eq $Host.UI.RawUI.BufferSize.Width - 1) {
+                $pos = Get-Cursor
+                Move-Cursor 0 ($pos.Y + 1)
+                return
+            }
+            if ($byte -eq 0x00) { return }
             $Q.Enqueue($byte)
         }
         { ($byte -band 0xE0) -eq 0xC0} {
@@ -188,17 +204,25 @@ function negotiation {
 # CSI Screen
 ###############################################################################
 function Get-Cursor {
-    New-Object System.Management.Automation.Host.Coordinates(
-        $Host.UI.RawUI.CursorPosition.X,
-        $Host.UI.RawUI.CursorPosition.Y
-    )
+    # バッファ全体ではなく、ウィンドウ中でのポジションを返す。
+    $X = $Host.UI.RawUI.CursorPosition.X
+    $Y = $Host.UI.RawUI.CursorPosition.Y - $Host.UI.RawUI.WindowPosition.Y
+    return New-Object System.Management.Automation.Host.Coordinates($X, $Y)
 }
 function Set-Cursor {
     param($pos)
+    # バッファ全体ではなく、ウィンドウ中でのポジションを設定する。
     if ($pos.X -ge $Host.UI.RawUI.WindowSize.Width) {
         $pos.X = $Host.UI.RawUI.WindowSize.Width - 1
     }
+    $pos.Y = $pos.Y + $Host.UI.RawUI.WindowPosition.Y
     $Host.UI.RawUI.CursorPosition = $pos
+}
+function Move-Cursor {
+    param($column, $line)
+    # Set-Cursor を (X, Y) 形式で指定するためのオーバーロード
+    $pos = New-Object System.Management.Automation.Host.Coordinates $column, $line
+    Set-Cursor $pos
 }
 function Save-Cursor {
     param($pos)
@@ -208,13 +232,6 @@ function Save-Cursor {
 }
 function Restore-Cursor {
     $Host.UI.RawUI.CursorPosition = $script:cursor.Pop()
-}
-function Move-Cursor {
-    param($line, $column)
-    $newline = $Host.UI.RawUI.WindowPosition.Y
-    $newColumn = $column - 1
-    $pos = New-Object System.Management.Automation.Host.Coordinates $newColumn,$newline
-    Set-Cursor $pos
 }
 function Save-Screen()
 {
@@ -293,7 +310,7 @@ function CSI_CUP {
         $l = $arguments[0]
         $c = $arguments[1]
     }
-    Move-Cursor $l $c
+    Move-Cursor $c $l
 }
 function CSI_ED {
     param($arguments)
