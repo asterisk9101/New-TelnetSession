@@ -231,7 +231,9 @@ function Save-Cursor {
     return $pos
 }
 function Restore-Cursor {
-    $Host.UI.RawUI.CursorPosition = $script:cursor.Pop()
+    $pos = $script:cursor.Pop()
+    $pos.Y += $Host.UI.RawUI.WindowPosition.Y
+    $Host.UI.RawUI.CursorPosition = $pos
 }
 function Save-Screen()
 {
@@ -302,17 +304,27 @@ function CSI_CUL {
     Set-Cursor $pos
 }
 function CSI_CUP {
+    # CSI $l, $c H
     param($arguments)
+    Save-Screen
+    $pos = New-Object System.Management.Automation.Host.Coordinates(
+        0,
+        ($Host.UI.RawUI.WindowPosition.Y + $Host.UI.RawUI.WindowSize.Height)
+        )
+    $Host.UI.RawUI.WindowPosition = $pos
     if ($arguments -eq $null) {
         $l = 0
         $c = 0
     } else {
-        $l = $arguments[0]
-        $c = $arguments[1]
+        $l = $arguments[0] - 1
+        $c = $arguments[1] - 1
     }
     Move-Cursor $c $l
+
+    Restore-Screen
 }
 function CSI_ED {
+    # CSI J
     param($arguments)
     $mode = if ($arguments -eq $null) { 0 } else { $arguments[0] }
     switch ($mode) {
@@ -327,7 +339,14 @@ function CSI_ED {
             Restore-Cursor
         }
         1 {  }
-        2 {  }
+        2 {
+            $pos = Save-Cursor
+            0..($Host.UI.RawUI.WindowSize.Height) | % {
+                " " * $Host.UI.RawUI.WindowSize.Width | output
+                #"_" * $Host.UI.RawUI.WindowSize.Width | write-host -ForegroundColor Yellow
+            }
+            Restore-Cursor
+        }
         default { <# ignore #> }
     }
 }
@@ -431,6 +450,7 @@ function CSI {
         "D" { CSI_CUL $arguments }
         "K" { CSI_EL $arguments }
         "H" { CSI_CUP $arguments }
+        "J" { CSI_ED $arguments }
         "m" { CSI_SGR $arguments }
         "?" {
             next > $null
